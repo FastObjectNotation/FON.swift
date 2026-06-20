@@ -42,6 +42,19 @@ public func nativeVersion() -> String {
 }
 
 
+// ==================== CONFIGURATION ====================
+
+/// Enable or disable raw-data unpacking during deserialization (global setting).
+public func setRawUnpack(_ enable: Bool) {
+    fon_set_raw_unpack(enable ? 1 : 0)
+}
+
+/// Set the maximum nesting depth for deserialization (default: 64, minimum: 1).
+public func setMaxDepth(_ depth: Int32) {
+    fon_set_max_depth(depth)
+}
+
+
 // ==================== HELPERS ====================
 
 private func checkResult(_ code: Int32, error nativeError: CFonNative.FonError) throws {
@@ -207,6 +220,31 @@ public final class FonCollection {
         return self
     }
 
+    /**
+     * Nest an array of collections under `key` inside this collection.
+     *
+     * OWNERSHIP TRANSFER: every element of `children` is owned by the native
+     * layer after this call. All `FonCollection` wrappers in the array are
+     * invalidated — do not use them again.
+     */
+    @discardableResult
+    public func addCollectionArray(key: String, children: [FonCollection]) throws -> FonCollection {
+        var err = CFonNative.FonError()
+        // Transfer ownership of each child and collect raw pointers.
+        var rawPtrs: [UnsafeMutableRawPointer?] = children.map { $0.transferOwnership() }
+        let code = rawPtrs.withUnsafeMutableBufferPointer { ptr in
+            fon_collection_add_collection_array(
+                UnsafeMutableRawPointer(handle),
+                key,
+                ptr.baseAddress,
+                Int64(children.count),
+                &err
+            )
+        }
+        try checkResult(code, error: err)
+        return self
+    }
+
     // ==================== SCALAR GETS ====================
 
     public func getInt(key: String) throws -> Int32 {
@@ -308,6 +346,41 @@ public final class FonCollection {
             throw FonError.from(nativeError: err)
         }
         return FonCollection(handle: OpaquePointer(raw), owns: false)
+    }
+
+    /**
+     * Return borrowed views of a collection array under key (two-call pattern).
+     * None of the returned FonCollection wrappers own their handle — do not free them.
+     * All are only valid while this collection (parent) is alive.
+     */
+    public func getCollectionArray(key: String) throws -> [FonCollection] {
+        var err = CFonNative.FonError()
+        var actualSize: Int64 = 0
+        // First call: measure count.
+        var code = fon_collection_get_collection_array(
+            UnsafeMutableRawPointer(handle), key, nil, 0, &actualSize, &err
+        )
+        try checkResult(code, error: err)
+        if actualSize == 0 {
+            return []
+        }
+        // Second call: fill buffer of raw pointers.
+        var rawBuf = [UnsafeMutableRawPointer?](repeating: nil, count: Int(actualSize))
+        code = rawBuf.withUnsafeMutableBufferPointer { ptr in
+            fon_collection_get_collection_array(
+                UnsafeMutableRawPointer(handle),
+                key,
+                ptr.baseAddress,
+                actualSize,
+                &actualSize,
+                &err
+            )
+        }
+        try checkResult(code, error: err)
+        return rawBuf.compactMap { raw in
+            guard let r = raw else { return nil }
+            return FonCollection(handle: OpaquePointer(r), owns: false)
+        }
     }
 
     // ==================== SERIALIZATION ====================
@@ -421,6 +494,28 @@ public final class FonDump {
         guard let raw = bytes.withUnsafeBufferPointer({ ptr in
             fon_deserialize_dump_from_buffer(ptr.baseAddress, Int64(bytes.count), maxThreads, &err)
         }) else {
+            throw FonError.from(nativeError: err)
+        }
+        return FonDump(handle: OpaquePointer(raw))
+    }
+
+    /**
+     * Serialize the dump to a .fon file at the given path.
+     * `maxThreads`: Rayon thread pool hint; 0 uses the global pool.
+     */
+    public func serialize(toFile path: String, maxThreads: Int32 = 0) throws {
+        var err = CFonNative.FonError()
+        let code = fon_serialize_to_file(UnsafeMutableRawPointer(handle), path, maxThreads, &err)
+        try checkResult(code, error: err)
+    }
+
+    /**
+     * Deserialize a .fon file at the given path into a new FonDump.
+     * `maxThreads`: Rayon thread pool hint; 0 uses the global pool.
+     */
+    public static func deserialize(fromFile path: String, maxThreads: Int32 = 0) throws -> FonDump {
+        var err = CFonNative.FonError()
+        guard let raw = fon_deserialize_from_file(path, maxThreads, &err) else {
             throw FonError.from(nativeError: err)
         }
         return FonDump(handle: OpaquePointer(raw))

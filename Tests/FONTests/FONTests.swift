@@ -136,4 +136,88 @@ final class FONTests: XCTestCase {
             XCTAssertEqual(try r.getString(key: "label"), "row\(i)")
         }
     }
+
+    // ==================== COLLECTION ARRAY ROUNDTRIP ====================
+
+    func testCollectionArrayRoundtrip() throws {
+        // Build three child collections (objects).
+        let child0 = FonCollection()
+        try child0.addInt(key: "id", value: 10)
+        try child0.addString(key: "name", value: "alpha")
+
+        let child1 = FonCollection()
+        try child1.addInt(key: "id", value: 20)
+        try child1.addString(key: "name", value: "beta")
+
+        let child2 = FonCollection()
+        try child2.addInt(key: "id", value: 30)
+        try child2.addString(key: "name", value: "gamma")
+
+        // Nest them as an array of objects inside a parent collection.
+        let parent = FonCollection()
+        try parent.addCollectionArray(key: "items", children: [child0, child1, child2])
+
+        // Roundtrip through string serialization.
+        let line = try parent.serialize()
+        XCTAssertFalse(line.isEmpty)
+
+        let restored = try FonCollection.deserialize(from: line)
+
+        // Retrieve the array and verify each element.
+        let items = try restored.getCollectionArray(key: "items")
+        XCTAssertEqual(items.count, 3)
+
+        XCTAssertEqual(try items[0].getInt(key: "id"), 10)
+        XCTAssertEqual(try items[0].getString(key: "name"), "alpha")
+
+        XCTAssertEqual(try items[1].getInt(key: "id"), 20)
+        XCTAssertEqual(try items[1].getString(key: "name"), "beta")
+
+        XCTAssertEqual(try items[2].getInt(key: "id"), 30)
+        XCTAssertEqual(try items[2].getString(key: "name"), "gamma")
+    }
+
+    // ==================== FILE ROUNDTRIP ====================
+
+    func testFileRoundtrip() throws {
+        // Build a dump with two collections.
+        let dump = FonDump()
+
+        let col0 = FonCollection()
+        try col0.addInt(key: "seq", value: 1)
+        try col0.addString(key: "msg", value: "first")
+        try dump.add(id: 0, collection: col0)
+
+        let col1 = FonCollection()
+        try col1.addInt(key: "seq", value: 2)
+        try col1.addString(key: "msg", value: "second")
+        try dump.add(id: 1, collection: col1)
+
+        // Write to a temp file.
+        let tmpDir = FileManager.default.temporaryDirectory
+        let tmpFile = tmpDir.appendingPathComponent("fon_test_\(UUID().uuidString).fon")
+        let path = tmpFile.path
+
+        defer {
+            try? FileManager.default.removeItem(atPath: path)
+        }
+
+        try dump.serialize(toFile: path)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: path))
+
+        // Read it back.
+        let loaded = try FonDump.deserialize(fromFile: path)
+        XCTAssertEqual(loaded.count, 2)
+
+        guard let r0 = loaded.get(at: 0), let r1 = loaded.get(at: 1) else {
+            XCTFail("Expected two records in loaded dump")
+            return
+        }
+
+        XCTAssertEqual(try r0.getInt(key: "seq"), 1)
+        XCTAssertEqual(try r0.getString(key: "msg"), "first")
+
+        XCTAssertEqual(try r1.getInt(key: "seq"), 2)
+        XCTAssertEqual(try r1.getString(key: "msg"), "second")
+    }
 }
