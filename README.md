@@ -1,23 +1,17 @@
-# FON — Fast Object Notation (Swift)
+# FON — Fast Object Notation
 
 [![CI](https://github.com/FastObjectNotation/FON.swift/actions/workflows/ci.yml/badge.svg)](https://github.com/FastObjectNotation/FON.swift/actions/workflows/ci.yml)
 
-Swift binding for [FON](https://github.com/FastObjectNotation/FON.rust) — a fast, human-readable,
-line-oriented serialization format. A compact alternative to JSON for record-style data. Each line
-is one record; values are typed and can nest.
-
-The binding wraps a Rust cdylib shim (`fon_native`) via a C header, exposing an idiomatic Swift
-API built around `FonCollection` and `FonDump`.
+FON is a fast, human-readable, line-oriented serialization format. A compact alternative to JSON
+for record-style data. Each line is one record; values are typed and can nest.
 
 ## Features
 
 - **Compact, readable wire format** — `key=type:value` pairs, one record per line.
 - **Typed values** — numeric/bool/string primitives, nested objects, and arrays of any of them.
 - **Nested objects & arrays of objects** with a configurable maximum depth.
-- **Parallel** dump serialization and deserialization via Rayon (configured with `maxThreads`).
+- **Parallel** dump serialization and deserialization (configured with `maxThreads`).
 - **Idiomatic Swift API** — `FonCollection` and `FonDump` classes with `throws`-based error handling.
-- **Build-from-source** — no pre-built binary blobs; the Rust shim is compiled from the bundled
-  git submodule.
 
 ## Format
 
@@ -56,17 +50,17 @@ nested objects (`{...}`) and arrays of objects (`[{...},{...}]`).
 ### Prerequisites
 
 - Swift 5.9+ (macOS 12+ or Linux with the Swift toolchain)
-- Rust (stable) — needed to build the native cdylib
+- Rust (stable) — needed to build the native library from source
 
 ### SwiftPM dependency
 
 ```swift
 // In Package.swift
-.package(url: "https://github.com/FastObjectNotation/FON.swift", from: "0.2.1"),
+.package(url: "https://github.com/FastObjectNotation/FON.swift", from: "0.3.0"),
 ```
 
-**Important:** because this package builds the native library from source, you must run the Rust
-build step before `swift build`:
+**Important:** because this package builds the native library from source, you must clone with
+submodules and run the native build step before `swift build`:
 
 ```bash
 git clone --recurse-submodules https://github.com/FastObjectNotation/FON.swift
@@ -75,8 +69,8 @@ cargo build --release --manifest-path native/Cargo.toml
 swift build
 ```
 
-The compiled `libfon_native` is placed in `native/target/release/`. `Package.swift` adds that
-directory to the linker search path automatically via `unsafeFlags`.
+The compiled native library is placed in `native/target/release/`. `Package.swift` adds that
+directory to the linker search path automatically.
 
 ## Usage
 
@@ -85,7 +79,7 @@ directory to the linker search path automatically via `unsafeFlags`.
 ```swift
 import FON
 
-print(nativeVersion())  // "0.2.1"
+print(nativeVersion())  // "0.3.0"
 ```
 
 ### A single collection
@@ -171,21 +165,10 @@ called directly via `CFonNative` if needed.
 git clone --recurse-submodules https://github.com/FastObjectNotation/FON.swift
 cd FON.swift
 
-# 1. Build the Rust cdylib
+# 1. Build the native library
 cargo build --release --manifest-path native/Cargo.toml
 
 # 2. Build and test the Swift package
 swift build
 swift test
 ```
-
-### Native library distribution
-
-This package uses a **build-from-source** strategy: the Rust shim lives in `native/` as a git
-submodule pointing at [FON.rust](https://github.com/FastObjectNotation/FON.rust). CI builds it
-fresh on every run.
-
-An alternative approach — shipping a pre-built XCFramework via SwiftPM's `binaryTarget` — would
-eliminate the Rust toolchain requirement for consumers but requires per-platform builds and checksum
-management in the release workflow. See `.github/workflows/release.yml` for notes on how this would
-be implemented.

@@ -4,7 +4,7 @@ import Foundation
 
 // ==================== ERRORS ====================
 
-/// Errors thrown by the FON Swift binding.
+/// Errors thrown by FON.
 public enum FonError: Error {
     case fileNotFound(String)
     case parseFailed(String)
@@ -33,7 +33,7 @@ public enum FonError: Error {
 
 // ==================== VERSION ====================
 
-/// Returns the native fon_native library version string (e.g. "0.2.1").
+/// Returns the FON library version string (e.g. "0.3.0").
 public func nativeVersion() -> String {
     guard let ptr = fon_version() else {
         return ""
@@ -92,7 +92,7 @@ private func serializeToBuffer(
 
 // ==================== FONCOLLECTION ====================
 
-/// A key-value collection wrapping the native fon_collection handle.
+/// A key-value collection representing a single FON record.
 ///
 /// **Ownership:** FonCollection owns its handle unless you transfer it to a
 /// FonDump (via `dump.add`) or to a parent collection (via `addCollection`).
@@ -416,7 +416,7 @@ public final class FonCollection {
 
 // ==================== FONDUMP ====================
 
-/// A multi-record dump wrapping the native fon_dump handle.
+/// A multi-record FON dump (sequence of collections, one per line).
 public final class FonDump {
 
     private var handle: OpaquePointer?

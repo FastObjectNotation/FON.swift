@@ -1,20 +1,15 @@
 // swift-tools-version: 5.9
 //
-// FON.swift — Swift binding for the FON (Fast Object Notation) library.
+// FON.swift — Swift package for the FON (Fast Object Notation) format.
 //
 // Build strategy (build-from-source via submodule):
-//   1. Build the Rust cdylib first:
+//   1. Build the native library first:
 //        cargo build --release --manifest-path native/Cargo.toml
 //   2. Then run swift build / swift test.
 //
-// The `CFonNative` system-library target points at Sources/CFonNative/include/fon.h
-// and links the built `fon_native` cdylib.  The linker search path is provided via
-// unsafeFlags pointing at `native/target/release/`.  On macOS the library is
-// `libfon_native.dylib`; on Linux it is `libfon_native.so`.
-//
-// Distributing pre-built binaries (binaryTarget / XCFramework) is an alternative
-// approach documented in README.md but is NOT used here so that the package stays
-// source-controlled and CI-friendly.
+// The `CFonNative` target links the built native library.  The linker search
+// path is provided via unsafeFlags pointing at `native/target/release/`.
+// On macOS the library is `libfon_native.dylib`; on Linux it is `libfon_native.so`.
 
 import PackageDescription
 import Foundation
