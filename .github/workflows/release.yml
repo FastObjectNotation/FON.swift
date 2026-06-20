@@ -32,7 +32,7 @@ jobs:
 # ──────────────────────────────────────────────────────────────────────────────
 # NOTE — SwiftPM native library distribution
 #
-# SwiftPM resolves this package from its git tag (v0.2.1).  Because the native
+# SwiftPM resolves this package from its git tag (v0.3.0).  Because the native
 # cdylib is built from source (the `native/` submodule), consumers must build it
 # before calling `swift build` / `swift test`:
 #

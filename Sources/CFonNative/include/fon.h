@@ -34,7 +34,7 @@ typedef struct {
 
 /**
  * Returns a pointer to a static null-terminated UTF-8 string with the library
- * version, e.g. "0.2.1". The pointer is valid for the lifetime of the process.
+ * version, e.g. "0.3.0". The pointer is valid for the lifetime of the process.
  */
 const char *fon_version(void);
 

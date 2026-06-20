@@ -7,7 +7,7 @@ final class FONTests: XCTestCase {
     // ==================== VERSION ====================
 
     func testNativeVersion() {
-        XCTAssertEqual(nativeVersion(), "0.2.1")
+        XCTAssertEqual(nativeVersion(), "0.3.0")
     }
 
     // ==================== ROUNDTRIP: DUMP ====================
