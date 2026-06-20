@@ -1,0 +1,11 @@
+native/target/
+**/target/
+.build/
+/docs/
+.superpowers/
+
+# Swift
+*.o
+*.d
+*.swp
+.DS_Store

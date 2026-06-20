@@ -1,0 +1,5 @@
+module CFonNative {
+    header "include/fon.h"
+    link "fon_native"
+    export *
+}
