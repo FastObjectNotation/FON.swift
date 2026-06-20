@@ -66,7 +66,7 @@ private func checkResult(_ code: Int32, error nativeError: CFonNative.FonError) 
 private func serializeToBuffer(
     _ call: (_ buffer: UnsafeMutablePointer<UInt8>?, _ size: Int64, _ required: UnsafeMutablePointer<Int64>) -> Int32
 ) throws -> String {
-    var err = CFonNative.FonError()
+    let err = CFonNative.FonError()
     var required: Int64 = 0
 
     // First call: measure size.
