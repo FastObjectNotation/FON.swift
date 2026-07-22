@@ -79,7 +79,7 @@ directory to the linker search path automatically.
 ```swift
 import FON
 
-print(nativeVersion())  // "0.3.0"
+print(nativeVersion())  // the bundled native library version
 ```
 
 ### A single collection
