@@ -7,19 +7,25 @@
 //        cargo build --release --manifest-path native/Cargo.toml
 //   2. Then run swift build / swift test.
 //
-// The `CFonNative` target links the built native library.  The linker search
-// path is provided via unsafeFlags pointing at `native/target/release/`.
-// On macOS the library is `libfon_native.dylib`; on Linux it is `libfon_native.so`.
+// The `CFonNative` target links the native library `fon_native`
+// (`libfon_native.dylib` on macOS, `libfon_native.so` on Linux, `fon_native.dll`
+// on Windows).
 
 import PackageDescription
 import Foundation
 
 
-// Resolve the path to native/target/release relative to this Package.swift.
-// On macOS / Linux `#file` gives the source path; we walk two levels up from
-// `Package.swift` to the repo root, then into native/target/release.
-let repoRoot = URL(fileURLWithPath: #file).deletingLastPathComponent().path
-let nativeReleaseDir = repoRoot + "/native/target/release"
+// native/target/release next to this Package.swift.
+let repoRoot: String = URL(fileURLWithPath: #file).deletingLastPathComponent().path
+let nativeReleaseDir: String = repoRoot + "/native/target/release"
+
+// When the library was built inside this checkout (development, CI, or a path
+// dependency), its directory is added to the linker search path. SwiftPM rejects
+// such flags in a versioned dependency, so there the flag is left out and the
+// consumer supplies the directory instead: swift build -Xlinker -L<dir>.
+let nativeLinkerSettings: [LinkerSetting] = FileManager.default.fileExists(atPath: nativeReleaseDir)
+    ? [.linkedLibrary("fon_native"), .unsafeFlags(["-L\(nativeReleaseDir)"])]
+    : [.linkedLibrary("fon_native")]
 
 let package = Package(
     name: "FON",
@@ -34,12 +40,11 @@ let package = Package(
     ],
     targets: [
         // ──────────────────────────────────────────────────────────────────
-        // CFonNative — thin C-module wrapper around the fon_native cdylib.
+        // CFonNative — the C declarations of the fon_native library.
         //
         // `publicHeadersPath` points at Sources/CFonNative/include/ where
-        // fon.h lives.  The module.modulemap in Sources/CFonNative/ is picked
-        // up automatically by SwiftPM because the target is a `systemLibrary`
-        // (we use a regular `target` here so SwiftPM handles the modulemap).
+        // fon.h lives.  SwiftPM picks up module.modulemap from
+        // Sources/CFonNative/ for this regular target.
         // ──────────────────────────────────────────────────────────────────
         .target(
             name: "CFonNative",
@@ -48,10 +53,7 @@ let package = Package(
             cSettings: [
                 .headerSearchPath("include"),
             ],
-            linkerSettings: [
-                .linkedLibrary("fon_native"),
-                .unsafeFlags(["-L\(nativeReleaseDir)"]),
-            ]
+            linkerSettings: nativeLinkerSettings
         ),
 
         // ──────────────────────────────────────────────────────────────────
