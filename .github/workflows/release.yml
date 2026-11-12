@@ -5,12 +5,17 @@ on:
     tags:
       - 'v*.*.*'
 
+permissions:
+  contents: read
+
 jobs:
-  release:
-    name: Publish GitHub Release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+  test:
+    name: Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
 
     steps:
       - name: Checkout (with submodules)
@@ -18,35 +23,42 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Check that the tag matches the native library version
+        shell: bash
+        run: |
+          VERSION=$(grep -m1 -oE '^version = "[^"]+"' native/Cargo.toml | cut -d'"' -f2)
+          if [ "v$VERSION" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match native/Cargo.toml version $VERSION"
+            exit 1
+          fi
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build native cdylib (Linux)
+      - name: Build native cdylib
         run: cargo build --release --manifest-path native/Cargo.toml
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run swift test
+        run: swift test
 
-# ──────────────────────────────────────────────────────────────────────────────
-# NOTE — SwiftPM native library distribution
-#
-# SwiftPM resolves this package from its git tag (v0.3.0).  Because the native
-# cdylib is built from source (the `native/` submodule), consumers must build it
-# before calling `swift build` / `swift test`:
-#
-#   git clone --recurse-submodules https://github.com/<org>/FON.swift
-#   cargo build --release --manifest-path native/Cargo.toml
-#   swift build
-#
-# Alternative (not implemented here): ship a pre-built XCFramework as a
-# `binaryTarget` so consumers don't need Rust.  That would require:
-#   1. Building `libfon_native.a` (static) or `libfon_native.dylib` for each
-#      platform/arch in the release workflow.
-#   2. Packaging them into an XCFramework with `xcodebuild -create-xcframework`.
-#   3. Zipping, computing the SHA-256 checksum, and pointing `Package.swift` at
-#      the release download URL via `.binaryTarget(name:url:checksum:)`.
-# ──────────────────────────────────────────────────────────────────────────────
+  release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: write
+
+    steps:
+      - name: Create GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes
+
+# SwiftPM resolves this package from its git tag. The native library is built from
+# source (the `native/` directory), so a consumer builds it once before `swift build`;
+# the README describes the steps.

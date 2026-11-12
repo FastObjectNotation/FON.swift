@@ -6,8 +6,18 @@ final class FONTests: XCTestCase {
 
     // ==================== VERSION ====================
 
-    func testNativeVersion() {
-        XCTAssertEqual(nativeVersion(), "0.4.0")
+    /// `nativeVersion()` is the version of the native crate in this repository.
+    func testNativeVersion() throws {
+        let root: URL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let manifest: String = try String(contentsOf: root.appendingPathComponent("native/Cargo.toml"), encoding: .utf8)
+        let line: Substring? = manifest.split(whereSeparator: \.isNewline).first { $0.hasPrefix("version = \"") }
+        let declared: String? = line?.split(separator: "\"").dropFirst().first.map { String($0) }
+
+        XCTAssertNotNil(declared)
+        XCTAssertEqual(nativeVersion(), declared)
     }
 
     // ==================== ROUNDTRIP: DUMP ====================

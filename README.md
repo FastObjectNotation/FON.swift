@@ -16,7 +16,9 @@ A fast, human-readable, line-oriented serialization format — a compact alterna
 
 ## Format
 
-Each line is one record: a comma-separated list of `key=type:value` pairs. A `.fon` file is a sequence of records. When a dump is loaded, each record id is the 0-based line number of its record.
+Each line is one record: a comma-separated list of `key=type:value` pairs. A `.fon` file is a sequence of records. When a dump is loaded, each record id is the 0-based line number of its record, so an empty line is an empty record.
+
+Parsing is strict: malformed text is an error, never a guess. An integer with trailing characters, a bool other than `0` or `1`, a missing, doubled or trailing comma, a repeated key and an unknown escape are all rejected, and an error in a dump names the line (`line 12: ...`).
 
 ```
 name=s:"John",age=i:30,balance=d:1234.56
@@ -56,7 +58,7 @@ Every primitive and string type also has an array form (`xs=i:[1,2,3]`). `o` hol
 
 ```swift
 // In Package.swift
-.package(url: "https://github.com/FastObjectNotation/FON.swift", from: "0.4.0"),
+.package(url: "https://github.com/FastObjectNotation/FON.swift", from: "0.5.0"),
 ```
 
 SwiftPM does not build the native library `fon_native`. Build it once from a clone:
@@ -222,7 +224,7 @@ let bytes = try blob.getRaw(key: "data")  // [0, 1, 255]
 
 `serialize(maxThreads:)` and `deserialize(from:maxThreads:)` on a dump take the number of worker threads for that call: `0` uses all cores, and a positive value caps the worker threads.
 
-`setRawUnpack(_:)` turns decoding of raw blobs during parsing on or off; it is off by default. `setMaxDepth(_:)` sets the maximum nesting depth, which is 64 by default and at least 1. Both settings are process-wide.
+`setRawUnpack(_:)` turns decoding of raw blobs during parsing on or off; it is off by default. `setMaxDepth(_:)` sets the maximum nesting depth, which is 64 by default, at least 1 and at most 128. Both settings are process-wide.
 
 ## Memory and lifetime
 
@@ -237,6 +239,8 @@ let bytes = try blob.getRaw(key: "data")  // [0, 1, 255]
 - A nested view of an owned collection goes stale after that collection is changed.
 
 Read the value again from the owner after a view becomes stale.
+
+**Threads.** The types are not thread-safe. Use one dump or collection tree from one thread at a time.
 
 **Ownership transfer.** Storing a collection with `addCollection`, `setCollection`, `addCollectionArray`, `setCollectionArray`, or a dump's `add`, `set` or `replace` transfers ownership of the stored argument:
 
@@ -340,7 +344,7 @@ swift build
 swift test
 ```
 
-The built library is placed in `native/target/release/`, and `Package.swift` adds that directory to the linker search path.
+The built library is placed in `native/target/release/`. `Package.swift` adds that directory to the linker search path and, on macOS and Linux, to the run path of the built products, so `swift test` finds the library when it starts.
 
 On Windows with the MSVC toolchain, cargo writes `native/target/release/fon_native.dll` and its import library `fon_native.dll.lib`, and the build links against them without extra flags. The test process loads `fon_native.dll` when it starts, so put the release directory on `PATH` before running the tests. Without it, `swift test` exits before any test runs:
 

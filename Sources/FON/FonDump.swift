@@ -7,7 +7,10 @@ import CFonNative
 ///
 /// The dump owns its native memory. Record views (from `get(at:)` or iteration) keep the
 /// dump alive and throw `FonError.staleView` once the record they show has been removed or
-/// replaced. Ids are stable in memory and renumber when the dump is serialized.
+/// replaced. Ids are stable in memory; a saved dump is renumbered from 0 when it is loaded.
+///
+/// Not thread-safe: a dump, its records and their views must not be used from two threads
+/// at the same time.
 public final class FonDump: Sequence {
 
     public typealias Element = (id: UInt64, collection: FonCollection)
